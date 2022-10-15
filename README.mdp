@@ -1,0 +1,319 @@
+# MayStreet High Performance Query (HPQ) Springboard
+
+## Welcome
+
+Welcome to the High Performance Query (HPQ) springboard.
+
+This springboard provides examples that can run inside Analytics Workbench and
+retrieve data from out High Performance Query platform. This document provides
+an overview of each of those examples in addition to an introduction to the HPQ
+platform.
+
+Feel free to copy the code from any of these examples into your own notebook, or
+to modify the existing notebooks. This is an isolated copy of this springboard
+which will remain in your own secured Analytics Workbench file system so you can
+tinker, continue, or start over whenever and however you like!
+
+If you'd like to make a copy of any notebook with a different name simply select
+`File` -> `Save As...` and choose a new name.
+
+## High Performance Query (HPQ)
+
+MayStreet's High Performance Query platform is a low latency, near time market
+data query API which supports high fidelity market data, low latencies, and high
+throughput.
+
+The core of the platform is a streaming WebSockets API which enables clients to
+process arbitrarily-sized result sets.
+
+To match the streaming nature of the API all notebooks in this springboard
+process data iteratively without buffering the entire response. The WebSocket
+message containing the complete response is read and processed frame-by-frame to
+avoid buffering and the JSON contained therein is processed element-by-element
+to avoid buffering the entire top level array.
+
+## Notebooks
+
+### _[authenticate.ipynb](authenticate.ipynb)_
+
+Other than this example this springboard operates against MayStreet's UAT HPQ
+environment which does not (currently) require user authentication. This will
+change in the future. Until that time this example shows how the API can make
+authenticated requests against MayStreet's production HPQ environment.
+
+A pre-shared secret is required to use this example.
+
+Run the first cell, fill your secret in the second cell, run the second cell,
+and then run the third cell.
+
+### _[graph-trades.ipynb](graph-trades.ipynb)_
+
+Downloads an entire day (2022-09-16) of iMpact trades for the spread product
+`SB  FMV0022-SB  FMH0023` and plots the price thereof.
+
+To run this notebook simply open it and click `Run All` in the top toolbar.
+
+### _[metadata.ipynb](metadata.ipynb)_
+
+The first meaningful cell of this notebook finds all spreads on the CME on the
+trading day 2022-09-16 which match a certain criteria: They have legs with
+product IDs 293009, 457947, and 514348. Note that this is accomplished by
+downloading all metadata for all products on the CME.
+
+To demonstrate the streaming nature of the API, and the streaming techniques in
+use on the client side of these examples, this first cell downloads all metadata
+for every product on the CME for the trading day in question. There are ~750 000
+such products and the JSON response is in excess of a half gigabyte in size.
+These details are of little consequence however since the response is read and
+parsed frame-by-frame, element-by-element and so the search completes quite
+quickly and with minimal memory use.
+
+The second meaningful cell of this notebook interrogates the API to retrieve all
+metadata available regarding the aforementioned legs as of 17:30 ET on
+2022-09-16. Note that a date and time are specified to interrogate the API
+because CME metadata can evolve intra-day and the HPQ API is capable of tracking
+these evolutions and returning snapshots of product metadata as they existed at
+different points within a day.
+
+This notebook can be run either by running all cells via the `Run All` button on
+the top toolbar or by running the first cell (which performs a needed
+`pip install`) and therefore running either the first meaningful or second
+meaningful cells on their own.
+
+### _[no-follow.ipynb](no-follow.ipynb)_
+
+Since HPQ is a near time market solution queries are accepted for the current
+trading day. As the exchange sends information and it is received and processed
+by the HPQ system it is made available as soon as technically and legally
+possible. This formulation implies that there may be queries which cannot be
+fully satisfied at some point in time but which may be satisfiable in the
+future.
+
+Because of this HPQ responses may end with a JSON object whose `type` key is
+associated with the string `no_follow`. This indicates that the query caught up
+to the point up to which data is technically and legally available. This is
+described as "no follow" because it indicates that the query engine refused to
+"follow" live market data. This usage of the term "follow" has prior art in the
+`-f` option to the `tail` utility.
+
+This example demonstrates handling queries that end in "no follow" and how those
+result sets evolve as live market data is processed by the HPQ system. Run the
+first cell and then the second cell. The second cell always queries for the last
+20 minutes of CME data for `ES` with a month code of `Z` and a year code which
+corresponds to the current year. Since CME data is legally required to be
+delayed by ten minutes this query will end in `no_follow`. The output is:
+
+- The time range queried (i.e. which 20 minute time range was requested)
+- The number of results displayed (up to 25)
+- The total number of results
+- The time up to which market data was available
+- A table of the displayed results (always the last 25 results in the result
+  set)
+
+Repeatedly run the second cell to watch the result set evolve as additional
+market data is made available through the HPQ system.
+
+### _[pagination.ipynb](pagination.ipynb)_
+
+Traditional APIs include parameters which can be used to:
+
+- Limit response size
+- Request that a response begin at some offset from the start of the result set
+- Specify the ordering of returned data
+
+HPQ supports none of these. All data returned by the HPQ API is in temporal
+order. Where data is being returned for the same instant in time (for example
+when obtaining a snapshot of the state of the market) it is unordered (you are
+not guaranteed that the order is coherent or consistent).
+
+The above formulation may seem limiting especially given the paginated manner in
+which large result sets are typically queried and presented. But HPQ is a
+streaming API and will stream you data as long as you like. If you stop reading
+data and allow the TCP window to close, or close the connection the engine no
+longer generates data. Rather than forcing users to specify the size of their
+response in advance HPQ allows them to read as much as they like and then
+abandon the response. This approach is less, not more, limiting than traditional
+pagination.
+
+This springboard demonstrates this principle through two different examples.
+
+To get started run the first cell which performs a needed `pip install`.
+
+#### First Example: Page-by-Page
+
+Running the second cell begins the example by opening a connection to HPQ and
+setting up a pagination context with a query for 15 minutes of trades from the
+CME. Thereafter each time the third cell is run it will retrieve the next page
+of 10 trades. Once all trades have been retrieved running the third cell does
+nothing.
+
+To restart the pagination simply run the second cell again.
+
+#### Second Example: All Pages
+
+Running the fourth cell streams all pages in a result set. Note that in this
+case the injected filtering lambda selects only printable trades however a
+correctly paginated set is still formed. This demonstrates the flexibility of
+HPQ's streaming approach.
+
+## Python Modules
+
+### [`hpq`](hpq.py)
+
+#### `class WebSocketClient()`
+
+Provides connectivity to the HPQ API via WebSockets.
+
+#### `accepted`
+
+After a query is accepted (note that transmission of the response may still be
+ongoing at this time) a dictionary representing the JSON accept sent by the HPQ
+API will be set to this attribute. Useful information which may be extracted
+from this includes:
+
+- The format of the response (ususally `application/json`)
+- Tracing information which should be included when and if MayStreet support
+  needs to be contacted (on error this tracing information will be included in
+  the thrown exception)
+
+#### `connect_opts`
+
+A dictionary of arguments to forward to the
+[`connect` member function of the `websocket.WebSocket` object](https://websocket-client.readthedocs.io/en/latest/core.html#websocket._core.WebSocket.connect).
+
+Note that if this attribute is assigned after the WebSocket connection is opened
+it was have no effect until and unless the connection is torn down and
+reconnected.
+
+#### `init_opts`
+
+A dictionary of arguments to forward to the
+[constructor of the `websocket.WebSocket` object](https://websocket-client.readthedocs.io/en/latest/core.html#websocket._core.WebSocket.__init__)
+used internally.
+
+Note that if this attribute is assigned after the WebSocket connection is opened
+it was have no effect until and unless the connection is torn down and
+reconnected.
+
+#### `url`
+
+Attributes which determines which HPQ endpoint to connect to. Defaults to
+`wss://mdx.uat.maystreet.com`. The [authentication example](authenticate.ipynb)
+uses `wss://mdx.maystreet.com`.
+
+#### `def __init__(self)`
+
+Initializes an object.
+
+Connection is formed lazily, simply initialization an object of this type does
+not perform any network operations.
+
+##### `def cancel(self)`
+
+Requests that the HPQ API stop processing the current request (if any) and end
+the response as soon as possible.
+
+Blocks until the connection is ready to be reused for a subsequent request.
+
+##### `def stream(self, request)`
+
+Submits `request` (a dictionary which will be serialized to JSON) to the HPQ API
+and returns a stream object derived from
+[`io.RawIOBase`](https://docs.python.org/3/library/io.html#io.RawIOBase) which
+will either iteratively yield the entire body of the response or throw an
+exception (if the response ends in error).
+
+### `class Position()`
+
+Represents a position in time from which a query may be resumed. The core
+primitive used in [pagination](pagination.ipynb).
+
+#### `def __init__(self, cont)`
+
+Creates an object which represents the position of the result given by `cont`.
+
+#### `def request(self, other = {})`
+
+Returns a [copy](https://docs.python.org/3/library/copy.html#copy.copy) of
+`other` with keys added such that submitting `other` as an HPQ request will
+cause the result set begin as near to `cont` (used to originally construct the
+object) as possible. Note that the request will always cause HPQ to return a
+result set which includes `cont`.
+
+#### `def predicate(self, item)`
+
+Determines whether `item` should be included in the resumed result set.
+
+Because HPQ queries are only parameterized on a point in time and since many
+messages may arrive at the same time it may be necessary to filter results from
+the beginning of a result set which aims to continue a previously-abandoned
+response. To accomplish this call this member function with successive results
+from the resuming response until `True` is returned. The first result for which
+`True` is returned and all subsequent results should be included in the resuming
+result set (i.e. they were not included in the previous result set which ended
+just before the `cont` result used to initialize this object).
+
+#### `def filter(self, iterable)`
+
+Returns an iterable which wraps `iterable` and which filters leading items in
+accordance with the `predicate` member function.
+
+### `class Page()`
+
+Wraps `Position` to create the abstraction of a single page in a
+[paginated result set](pagination.ipynb).
+
+#### `def __init__(self, conn, request, per_page, filter = ..., pos = None)`
+
+Creates an object which encapsulates the next page of `per_page` results
+generated by submitting a request via `conn`. The submitted request is:
+
+- `request` if `pos` is `None`
+- `pos.request(request)` otherwise
+
+The supplied `filter` predicate is used to exclude results from the page. The
+page will end after:
+
+- `per_page` results for which `filter` returns `True` have been yielded, or
+- The response ends
+
+The default `filter` always returns `True` (i.e. no filtering will be
+performed).
+
+#### `def __iter__(self)`
+
+Returns an iterable which may be traversed to obtain each result from this page.
+
+#### `def next_page(self, conn)`
+
+Do not call unless an iterable returned by `__iter__` has been fully traversed.
+
+Obtains a new `Page` object which represents the next page in the paginated
+result set. The newly-returned object will submit its request via the connection
+provided in `conn`.
+
+### `class Pages()`
+
+Wraps `Page` to create the abstraction of an entire
+[paginated result set](pagination.ipynb).
+
+#### `def __init__(self, conn, request, per_page, filter = ...)`
+
+Creates an object. For details on the parameters see the documentation of
+`Page.__init__`.
+
+#### `def __iter__(self)`
+
+Obtains an iterable which traverses `Page` objects. Each such object represents
+a new page of the paginated result set in turn.
+
+### `def format_timestamp(ts)`
+
+Formats a timestamp from the HPQ API (number of nanoseconds since the Unix
+epoch) as a string in ISO format with nanoseconds in UTC.
+
+### `def format(obj)`
+
+Uses `format_timestamp` to format the `receipt_timestamp` and
+`exchange_timestamp` of a provided result from the HPQ API. The object is
+returned but is not copied.
