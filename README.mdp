@@ -317,3 +317,8 @@ epoch) as a string in ISO format with nanoseconds in UTC.
 Uses `format_timestamp` to format the `receipt_timestamp` and
 `exchange_timestamp` of a provided result from the HPQ API. The object is
 returned but is not copied.
+
+#### `def create_web_socket_client()`
+
+Creates a `WebSocketClient` instance which is preconfigured to authenticate
+with HPQ in the appropriate manner.

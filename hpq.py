@@ -227,3 +227,9 @@ def format(obj):
     impl('receipt_timestamp')
     impl('exchange_timestamp')
     return obj
+
+def create_web_socket_client():
+    retr = WebSocketClient()
+    secret = '6C753A250093DF2E997C143CC95DC246024C8B6B5F717F8D6B6EE2B4B7399E59'
+    retr.connect_opts['header'] = [f"Authorization: MayStreet-Data-Lake-Secret {secret}"]
+    return retr
