@@ -218,7 +218,10 @@ class Pages():
 def format_timestamp(ts):
     dt = datetime.datetime.utcfromtimestamp(ts / 1000000000)
     ns = ts % 1000000000
-    return dt.strftime('%Y-%m-%dT%H:%M:%S.') + str(ns) + 'Z'
+    ns_str = str(ns)
+    while (len(ns_str) < 9):
+        ns_str = '0' + ns_str
+    return dt.strftime('%Y-%m-%dT%H:%M:%S.') + ns_str + 'Z'
 
 def format(obj):
     def impl(key):
