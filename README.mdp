@@ -186,6 +186,24 @@ case the injected filtering lambda selects only printable trades however a
 correctly paginated set is still formed. This demonstrates the flexibility of
 HPQ's streaming approach.
 
+### _[post-trade.ipynb](post-trade.ipynb)_
+
+Reads a list of CSV trades and for each:
+
+1. Finds the exact trade (since the input timestamps do not have nanosecond
+   precision)
+2. Obtains a snapshot of the state of the market immediately before the trade
+3. Obtains a snapshot of the state of the market immediately after the trade
+4. Determines the next change to the top of the book after the trade
+5. Obtains the next trade
+
+The first and second cells contain setup and should be run first.
+
+The third cell contains the CSV to process.
+
+The fourth cell contains the actual implementation of the example and will
+generate the corresponding output.
+
 ## Python Modules
 
 ### [`hpq`](hpq.py)
