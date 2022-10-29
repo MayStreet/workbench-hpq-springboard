@@ -7,13 +7,21 @@ import websocket
 
 
 class WebSocketClient:
-    class __Error(Exception):
-        def __init__(self, str):
-            super().__init__(str)
+    class Error(Exception):
+        def __init__(self, text, obj):
+            super().__init__(text)
+            self.json = obj
 
-    class __JsonError(__Error):
-        def __init__(self, obj):
-            super().__init__(json.dumps(obj))
+    class MidStreamError(Error):
+        def __init__(self, text, obj, accepted):
+            super().__init__(text, obj)
+            self.accepted = accepted
+
+    class RejectError(Error):
+        pass
+
+    class ProtocolError(Error):
+        pass
 
     __idle = 0
     __request_sent = 1
@@ -29,6 +37,8 @@ class WebSocketClient:
         self.connect_opts = {}
         self.accepted = None
         self.__state = WebSocketClient.__idle
+        self.__last_text = None
+        self.__last_json = None
 
     def connect(self):
         if not self.socket:
@@ -46,20 +56,28 @@ class WebSocketClient:
         self.send_request_raw(json.dumps(request))
 
     def __recv_json(self):
-        text = self.socket.recv()
-        obj = json.loads(text)
-        if "query_status" not in obj.keys():
-            raise WebSocketClient.__Error(text)
+        self.__last_text = self.socket.recv()
+        self.__last_json = json.loads(self.__last_text)
+        if "query_status" not in self.__last_json.keys():
+            raise WebSocketClient.ProtocolError(self.__last_text, self.__last_json)
 
-        return obj
+        return self.__last_json
 
-    def __recv_and_check(self, expected):
+    def __recv_and_check(self, *args):
         response = self.__recv_json()
-        if response["query_status"] != expected:
-            raise WebSocketClient.__JsonError(response)
-        self.__state += 1
+        if response["query_status"] in args:
+            self.__state += 1
+            return response
+        if response["query_status"] == "error":
+            previous = self.__state
+            self.__state = WebSocketClient.__idle
+            if previous == WebSocketClient.__after_response:
+                raise WebSocketClient.MidStreamError(
+                    self.__last_text, self.__last_json, self.accepted
+                )
+            raise WebSocketClient.RejectError(self.__last_text, self.__last_json)
 
-        return response
+        raise WebSocketClient.ProtocolError(self.__last_text, self.__last_json)
 
     def begin_response(self):
         self.__recv_and_check("scheduled")
@@ -148,14 +166,10 @@ class WebSocketClient:
         self.socket.send("cancel\n")
 
         def maybe_cancel(expected):
-            response = self.__recv_json()
+            response = self.__recv_and_check("canceled", expected)
             if response["query_status"] == "canceled":
                 self.__state = WebSocketClient.__idle
                 return True
-            if response["query_status"] != expected:
-                self.__state = WebSocketClient.__idle
-                raise WebSocketClient.__JsonError(response)
-            self.__state += 1
 
             return False
 
