@@ -146,7 +146,7 @@ class WebSocketClient:
             #   mid-stream error
             self.end_response()
             return
-        self.socket.send("cancel")
+        self.socket.send("cancel\n")
 
         def maybe_cancel(expected):
             response = self.__recv_json()
@@ -169,6 +169,23 @@ class WebSocketClient:
         while True:
             self.next_frame_of_response()
             if self.finished_response():
+                #   If a cancel is received by the router before
+                #   it sends the first chunk it doesn't send the
+                #   body at all
+                obj = None
+                try:
+                    obj = json.loads(
+                        self.frame.data.decode(encoding="utf-8", errors="strict")
+                    )
+                except:
+                    pass
+                if (
+                    obj is not None
+                    and "query_status" in obj.keys()
+                    and obj["query_status"] == "canceled"
+                ):
+                    self.__state = WebSocketClient.__idle
+                    return
                 break
         if not maybe_cancel("complete"):
             #   Accepting "error" works around the fact
