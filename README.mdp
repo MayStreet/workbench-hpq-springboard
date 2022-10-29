@@ -171,7 +171,7 @@ ongoing at this time) a dictionary representing the JSON accept sent by the HPQ
 API will be set to this attribute. Useful information which may be extracted
 from this includes:
 
-- The format of the response (ususally `application/json`)
+- The format of the response (usually `application/json`)
 - Tracing information which should be included when and if MayStreet support
   needs to be contacted (on error this tracing information will be included in
   the thrown exception)
