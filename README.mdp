@@ -46,6 +46,36 @@ A pre-shared secret is required to use this example.
 Run the first cell, fill your secret in the second cell, run the second cell,
 and then run the third cell.
 
+### _[error.ipynb](error.ipynb)_
+
+The HPQ API includes an endpoint whose only purpose is to fail for testing
+purposes. This example leverages this endpoint to demonstrate the various
+failure modalities which can be expected when interacting with the HPQ API.
+
+The first and second cell contain setup and should be run first.
+
+The third cell submits a single query which is unconditionally rejected (i.e. it
+fails before transfer of the response begins).
+
+The fourth cell:
+
+1. Submits a query which unconditionally ends in an immediate mid-stream error
+   (i.e. the service accepts the query and then transfer of the response fails
+   without sending any bytes thereof)
+2. Submits a query for some trades
+3. Transfers 10 trades
+4. Cancels the transfer
+5. JSONifies the downloaded trades as an incomplete JSON array (i.e. the last
+   character of the JSON representation is a comma)
+6. Submits a query which unconditionally ends in a mid-stream error but only
+   after sending the JSON from 5 as an incomplete response (note that the
+   response is incomplete because it ends in a mid-stream error rather than
+   succeeding)
+
+Note that despite the fact the query from 6 ends in error after transferring an
+incomplete body comprised of an incomplete JSON array the partial response is
+still parsed.
+
 ### _[graph-trades.ipynb](graph-trades.ipynb)_
 
 Downloads an entire day (2022-09-16) of iMpact trades for the spread product
