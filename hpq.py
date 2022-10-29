@@ -35,7 +35,7 @@ class WebSocketClient:
             socket = websocket.WebSocket(**self.init_opts)
             socket.connect(self.url, **self.connect_opts)
             self.socket = socket
-        
+
         return self.socket
 
     def send_request_raw(self, request):
@@ -50,7 +50,7 @@ class WebSocketClient:
         obj = json.loads(text)
         if "query_status" not in obj.keys():
             raise WebSocketClient.__Error(text)
-        
+
         return obj
 
     def __recv_and_check(self, expected):
@@ -58,20 +58,20 @@ class WebSocketClient:
         if response["query_status"] != expected:
             raise WebSocketClient.__JsonError(response)
         self.__state += 1
-        
+
         return response
 
     def begin_response(self):
         self.__recv_and_check("scheduled")
         self.accepted = self.__recv_and_check("accepted")
-        
+
         return self.accepted
 
     def next_frame_of_response(self):
         self.frame = self.socket.recv_frame()
         if self.finished_response():
             self.__state = WebSocketClient.__after_response
-        
+
         return self.frame.data
 
     def next_frame_of_response_as_string(self):
@@ -91,13 +91,13 @@ class WebSocketClient:
             if self.finished_response():
                 break
         self.end_response()
-        
+
         return str
 
     def request(self, request):
         self.send_request(request)
         self.begin_response()
-        
+
         return json.loads(self.rest_of_response_as_string())
 
     def stream(self, request):
@@ -129,10 +129,9 @@ class WebSocketClient:
                     b[: len(b)] = self.__inner.read(len(b))
                     return len(b)
                 self.__that.end_response()
-                
+
                 return 0
 
-        
         return Stream(self)
 
     def disconnect(self):
@@ -157,7 +156,7 @@ class WebSocketClient:
                 self.__state = WebSocketClient.__idle
                 raise WebSocketClient.__JsonError(response)
             self.__state += 1
-            
+
             return False
 
         if self.__state == WebSocketClient.__request_sent:
@@ -213,7 +212,7 @@ class Position:
         retr["time_zone"] = "UTC"
         retr["start_date"] = dt.strftime("%Y-%m-%d")
         retr["start_time"] = dt.strftime("%H:%M:%S.") + str(ns)
-        
+
         return retr
 
     def predicate(self, item):
@@ -224,7 +223,7 @@ class Position:
         if "message_number" in item.keys():
             if item["message_number"] < self.__cont["message_number"]:
                 return False
-        
+
         return True
 
     def filter(self, iterable):
@@ -286,7 +285,7 @@ def format_timestamp(ts):
     ns_str = str(ns)
     while len(ns_str) < 9:
         ns_str = "0" + ns_str
-    
+
     return dt.strftime("%Y-%m-%dT%H:%M:%S.") + ns_str + "Z"
 
 
@@ -297,7 +296,7 @@ def format(obj):
 
     impl("receipt_timestamp")
     impl("exchange_timestamp")
-    
+
     return obj
 
 
@@ -307,5 +306,5 @@ def create_web_socket_client():
     retr.connect_opts["header"] = [
         f"Authorization: MayStreet-Data-Lake-Secret {secret}"
     ]
-    
+
     return retr
