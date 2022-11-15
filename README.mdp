@@ -169,6 +169,25 @@ This springboard demonstrates this principle through two different examples.
 
 To get started run the first cell which performs a needed `pip install`.
 
+### _[transactions.ipynb](transactions.ipynb)_
+
+Certain market data feeds have the concept of a transaction: Several updates
+which are intended to be regarded atomically. CME is one of these. To support
+this HPQ tags each update with a transaction ID. This number is somewhat
+arbitrary and only has the meaning that for updates with the same transaction ID
+they are part of the same transaction.
+
+If receiving and processing each and every update is the desired use case then
+one may disregard transactions. If however one only wishes to examine valid,
+consistent states of the market one must only process updates after aggregating
+across each transaction. The latter of these is the purpose of this example.
+
+The first and second cell perform mandatory setup. The third cell contains the
+actual example: Changes to the top of book on CME are streamed. The first time
+they are streamed aggregation is performed across the transaction with only the
+final, consistent state being emitted. The second time each and every update is
+emitted. Note that the second data set is larger than the first.
+
 #### First Example: Page-by-Page
 
 Running the second cell begins the example by opening a connection to HPQ and
