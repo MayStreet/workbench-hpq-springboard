@@ -169,6 +169,15 @@ This springboard demonstrates this principle through two different examples.
 
 To get started run the first cell which performs a needed `pip install`.
 
+### _[trade-conditions.ipynb](trade-conditions.ipynb)_
+
+Annotates CME trades using a popular trade condition convention (TSUM, AB, AS,
+and OR).
+
+Run the first cell to perform mandatory setup, then the second cell which
+contains definitions, then the third cell will fetch orders and trades from HPQ
+and display a table of trades with their associated trade conditions.
+
 #### First Example: Page-by-Page
 
 Running the second cell begins the example by opening a connection to HPQ and
