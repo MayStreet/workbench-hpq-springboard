@@ -191,6 +191,24 @@ This springboard demonstrates this principle through two different examples.
 
 To get started run the first cell which performs a needed `pip install`.
 
+### _[post-trade.ipynb](post-trade.ipynb)_
+
+Reads a list of CSV trades and for each:
+
+1. Finds the exact trade (since the input timestamps do not have nanosecond
+   precision)
+2. Obtains a snapshot of the state of the market immediately before the trade
+3. Obtains a snapshot of the state of the market immediately after the trade
+4. Determines the next change to the top of the book after the trade
+5. Obtains the next trade
+
+The first and second cells contain setup and should be run first.
+
+The third cell contains the CSV to process.
+
+The fourth cell contains the actual implementation of the example and will
+generate the corresponding output.
+
 ### _[trade-conditions.ipynb](trade-conditions.ipynb)_
 
 Annotates CME trades using a popular trade condition convention (TSUM, AB, AS,
@@ -235,24 +253,6 @@ actual example: Changes to the top of book on CME are streamed. The first time
 they are streamed aggregation is performed across the transaction with only the
 final, consistent state being emitted. The second time each and every update is
 emitted. Note that the second data set is larger than the first.
-
-### _[post-trade.ipynb](post-trade.ipynb)_
-
-Reads a list of CSV trades and for each:
-
-1. Finds the exact trade (since the input timestamps do not have nanosecond
-   precision)
-2. Obtains a snapshot of the state of the market immediately before the trade
-3. Obtains a snapshot of the state of the market immediately after the trade
-4. Determines the next change to the top of the book after the trade
-5. Obtains the next trade
-
-The first and second cells contain setup and should be run first.
-
-The third cell contains the CSV to process.
-
-The fourth cell contains the actual implementation of the example and will
-generate the corresponding output.
 
 ## Python Modules
 
