@@ -235,6 +235,11 @@ case the injected filtering lambda selects only printable trades however a
 correctly paginated set is still formed. This demonstrates the flexibility of
 HPQ's streaming approach.
 
+#### See Also
+
+The techniques demonstrated by this example dovetail with those in the example
+for [unreliable connections](unreliable.ipynb).
+
 ### _[transactions.ipynb](transactions.ipynb)_
 
 Certain market data feeds have the concept of a transaction: Several updates
@@ -253,6 +258,50 @@ actual example: Changes to the top of book on CME are streamed. The first time
 they are streamed aggregation is performed across the transaction with only the
 final, consistent state being emitted. The second time each and every update is
 emitted. Note that the second data set is larger than the first.
+
+### _[unreliable.ipynb](unreliable.ipynb)_
+
+The HPQ API supports extremely large result sets. As a large result set is
+transferred the cost of losing that connection increases. In certain use cases
+connections may be unreliable (i.e. liable to drop before the end of the
+response). To use the HPQ API in these situations it is important that
+techniques are available and used to transfer large result sets even if the
+underlying connection is unreliable. This example demonstrates exactly these
+techniques.
+
+Run the first cell to perform mandatory setup, and then the second cell to
+provide a request and some helper functions for simulating an unreliable
+connection (i.e. one which has a 5% chance of raising an exception rather than
+yielding a result). Thereafter each subsequent cell is a separate example.
+
+#### First Example: Reliable Connection
+
+This example simply transfers the entire result set over a reliable connection
+(i.e. one without synthenic disconnects) to establish ground truth.
+
+#### Second Example: Unreliable Connection With Streaming JSON
+
+This example supposes that the environment has a streaming JSON parser
+available. As the result set is transferred the last transferred result is kept
+available and upon disconnect another connection is formed, an appropriate
+continuation request is submitted, and duplicated updates (if any) are
+discarded.
+
+Note that this example does not restart the transfer from the beginning on
+failure, it resumes as close to the last result as possible.
+
+#### Third Example: Unreliable Connection Without Streaming JSON
+
+This example supposes that the streaming JSON parsing techniques used in the
+previous example are unavailable. Instead of being requested as JSON the result
+set is requested as JSON Lines which allows for the response to be parsed and
+processed line-by-line. Other than this difference this example functions
+identically to the second example.
+
+#### See Also
+
+The techniques demonstrated by this example dovetail with those in the example
+for [paginating result sets](pagination.ipynb).
 
 ## Python Modules
 
