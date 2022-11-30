@@ -127,6 +127,7 @@ class WebSocketClient:
                 self.__that = that
                 self.__fin = False
                 self.__inner = None
+                self.__ended = False
 
             def readinto(self, b):
                 if self.__inner is not None:
@@ -146,9 +147,14 @@ class WebSocketClient:
                     self.__inner = io.BytesIO(next)
                     b[: len(b)] = self.__inner.read(len(b))
                     return len(b)
-                self.__that.end_response()
+                if not self.__ended:
+                    self.__that.end_response()
+                    self.__ended = True
 
                 return 0
+
+            def readable(self):
+                return True
 
         return Stream(self)
 
@@ -216,7 +222,9 @@ class Position:
 
     def request(self, other={}):
         ts = self.__cont["receipt_timestamp"]
-        ns = ts % 1000000000
+        ns = str(ts % 1000000000)
+        while len(ns) != 9:
+            ns = "0" + ns
         dt = datetime.datetime.utcfromtimestamp(ts / 1000000000)
         retr = copy.copy(other)
         if "date" in retr.keys():
@@ -225,7 +233,7 @@ class Position:
         #   TODO: What if the input request is not UTC?
         retr["time_zone"] = "UTC"
         retr["start_date"] = dt.strftime("%Y-%m-%d")
-        retr["start_time"] = dt.strftime("%H:%M:%S.") + str(ns)
+        retr["start_time"] = dt.strftime("%H:%M:%S.") + ns
 
         return retr
 
@@ -234,8 +242,10 @@ class Position:
             return True
         if item["sequence_number"] < self.__cont["sequence_number"]:
             return False
+        if item["sequence_number"] > self.__cont["sequence_number"]:
+            return True
         if "message_number" in item.keys():
-            if item["message_number"] < self.__cont["message_number"]:
+            if item["message_number"] <= self.__cont["message_number"]:
                 return False
 
         return True
