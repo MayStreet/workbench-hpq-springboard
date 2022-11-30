@@ -46,6 +46,28 @@ A pre-shared secret is required to use this example.
 Run the first cell, fill your secret in the second cell, run the second cell,
 and then run the third cell.
 
+### _[combo-group-id.ipynb](combo-group-id.ipynb)_
+
+SGX flags trades with a "Combo Group ID" which they describe in their
+specification as follows:
+
+>Used to group Combination Order Book executions and the trades in the
+>constituent Order Books together
+
+Despite this field being not necessarily having an equivalent for other
+feeds/exchanges it is supplied by the HPQ API (as "combo_group_id") when
+querying SGX data. This example uses this field to find the outright executions
+which correspond to the first spread execution it is able to find on a certain
+date (which may be set via a variable in the code).
+
+Run the first cell for required setup and then run the second cell to obtain the
+following information:
+
+- Selected spread
+- Leg information
+- Metadata for the spread and all legs
+- Spread execution and its corresponding outright executions
+
 ### _[error.ipynb](error.ipynb)_
 
 The HPQ API includes an endpoint whose only purpose is to fail for testing
