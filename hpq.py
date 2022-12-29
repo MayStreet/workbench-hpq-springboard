@@ -327,6 +327,24 @@ def format(obj):
     return obj
 
 
+def skip(n, iter):
+    skipped = 0
+    for i in iter:
+        if skipped == n:
+            yield i
+        else:
+            skipped += 1
+
+
+def take(n, iter):
+    i = 0
+    for obj in iter:
+        if i == n:
+            break
+        yield obj
+        i += 1
+
+
 def is_production():
     if "API_SERVER_BASE_URL" not in os.environ.keys():
         raise Exception("Environment variable API_SERVER_BASE_URL not set")
