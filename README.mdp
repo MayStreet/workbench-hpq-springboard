@@ -186,6 +186,23 @@ pagination.
 
 This springboard demonstrates this principle through two different examples.
 
+#### First Example: Page-by-Page
+
+Running the first cell begins the example by opening a connection to HPQ and
+setting up a pagination context with a query for 15 minutes of trades from the
+CME. Thereafter each time the second cell is run it will retrieve the next page
+of 10 trades. Once all trades have been retrieved running the second cell does
+nothing.
+
+To restart the pagination simply run the first cell again.
+
+#### Second Example: All Pages
+
+Running the third cell streams all pages in a result set. Note that in this case
+the injected filtering lambda selects only printable trades however a correctly
+paginated set is still formed. This demonstrates the flexibility of HPQ's
+streaming approach.
+
 ### _[post-trade.ipynb](post-trade.ipynb)_
 
 Reads a list of CSV trades and for each:
@@ -212,23 +229,6 @@ and OR).
 Run the first call to provide needed definitions, and then the second cell to
 fetch orders and trades from HPQ and display a table of trades with their
 associated trade conditions.
-
-#### First Example: Page-by-Page
-
-Running the first cell begins the example by opening a connection to HPQ and
-setting up a pagination context with a query for 15 minutes of trades from the
-CME. Thereafter each time the second cell is run it will retrieve the next page
-of 10 trades. Once all trades have been retrieved running the second cell does
-nothing.
-
-To restart the pagination simply run the first cell again.
-
-#### Second Example: All Pages
-
-Running the third cell streams all pages in a result set. Note that in this case
-the injected filtering lambda selects only printable trades however a correctly
-paginated set is still formed. This demonstrates the flexibility of HPQ's
-streaming approach.
 
 #### See Also
 
