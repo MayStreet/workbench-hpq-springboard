@@ -1,3 +1,7 @@
+"""Python utilities for interacting with the HPQ WebSocket API.
+
+Note that while HPQ has a REST API this is deprecated and therefore this module has no support therefor."""
+
 import copy
 import datetime
 import io
@@ -10,20 +14,34 @@ import websocket
 
 
 class WebSocketClient:
+    """Submits requests to the HPQ API via WebSocket and retrieves responses therefrom.
+
+    Both fully-streaming and full-buffered workflows are supported."""
+
     class Error(Exception):
+        """The base class for exceptions raised interoperating with the HPQ API."""
+
         def __init__(self, text, obj):
             super().__init__(text)
             self.json = obj
+            """The parsed JSON representing the last control message received."""
 
     class MidStreamError(Error):
+        """Indicates that a response failed after being accepted during transmission of the body."""
+
         def __init__(self, text, obj, accepted):
             super().__init__(text, obj)
             self.accepted = accepted
+            """The parsed JSON representing the control message which accepted the response."""
 
     class RejectError(Error):
+        """Indicates that a request was rejected."""
+
         pass
 
     class ProtocolError(Error):
+        """Indicates that the server did not transmit an expected control message at the expected time."""
+
         pass
 
     __idle = 0
@@ -34,16 +52,28 @@ class WebSocketClient:
 
     def __init__(self):
         self.url = "wss://mdx.uat.maystreet.com"
+        """The url to connect to. Defaults to the HPQ UAT environment."""
         self.init_opts = {}
+        """A dictionary of options which will be expanded and forwarded when calling
+        websocket.WebSocket.__init__."""
         self.socket = None
+        """The managed websocket.WebSocket object (once it has been initialized)."""
         self.frame = None
+        """The last WebSocket frame received (once one has been received)."""
         self.connect_opts = {}
+        """A dictionary of options which will be expanded and forwarded when calling websocket.WebSocket.connect."""
         self.accepted = None
+        """The parsed JSON of the control message which accepted the last request once a request has been accepted."""
         self.__state = WebSocketClient.__idle
         self.__last_text = None
         self.__last_json = None
 
     def connect(self):
+        """Creates a websocket.WebSocket, connects, and returns it.
+
+        If a websocket.WebSocket is already managed this function does nothing except return it.
+
+        It is not usually necessary to call this function directly (it is called internally as needed)."""
         if not self.socket:
             socket = websocket.WebSocket(**self.init_opts)
             socket.connect(self.url, **self.connect_opts)
@@ -52,10 +82,14 @@ class WebSocketClient:
         return self.socket
 
     def send_request_raw(self, request):
+        """Transmits a raw request.
+
+        It is not usually necessary to call this function directly."""
         self.connect().send(request)
         self.__state = WebSocketClient.__request_sent
 
     def send_request(self, request):
+        """Transmits a JSON request by stringifying the request parameter and sending it."""
         self.send_request_raw(json.dumps(request))
 
     def __recv_json(self):
@@ -83,12 +117,20 @@ class WebSocketClient:
         raise WebSocketClient.ProtocolError(self.__last_text, self.__last_json)
 
     def begin_response(self):
+        """Waits for the server to begin the response.
+
+        Should be called after initiating a response using send_request or send_request_raw.
+
+        Returns the parsed message which accepted the request. Raises an exception on reject."""
         self.__recv_and_check("scheduled")
         self.accepted = self.__recv_and_check("accepted")
 
         return self.accepted
 
     def next_frame_of_response(self):
+        """Streams the next JSON frame of the response.
+
+        Returns the data associated with the received WebSocket frame."""
         self.frame = self.socket.recv_frame()
         if self.finished_response():
             self.__state = WebSocketClient.__after_response
@@ -96,16 +138,29 @@ class WebSocketClient:
         return self.frame.data
 
     def next_frame_of_response_as_string(self):
+        """Functions identically to next_frame_of_response except the received data is decoded as UTF-8 into a string."""
         return self.next_frame_of_response().decode(encoding="utf-8", errors="strict")
 
     def finished_response(self):
+        """Checks to see if the last frame received completed the response.
+
+        Returns True if the response is finished, False otherwise."""
         return self.frame.fin == 1
 
     def end_response(self):
+        """Attempts to end the response and prepare the connection for the next request.
+
+        Must be called after finished_response returns True.
+
+        Throws an exception if the response didn't complete successfully (i.e. ended in mid-stream error)."""
         self.__recv_and_check("complete")
         self.__state = WebSocketClient.__idle
 
     def rest_of_response_as_string(self):
+        """Returns the unread portion of the response decoded into a string.
+
+        Note that end_response will be called internally for you (and all that implies,
+        i.e. mid-stream errors will result in this function throwing)."""
         str = ""
         while True:
             str += self.next_frame_of_response_as_string()
@@ -116,12 +171,26 @@ class WebSocketClient:
         return str
 
     def request(self, request):
+        """Performs an entire request cycle in a single call with the assumption that the response is JSON:
+
+        1. Sends the request via send_request
+        2. Calls begin_response
+        3. JSON decodes the entire response
+        4. Calls end_response
+
+        Note that this function should not be used for large responses (as their bodies will be buffered)."""
         self.send_request(request)
         self.begin_response()
 
         return json.loads(self.rest_of_response_as_string())
 
     def stream(self, request):
+        """Begins a streaming request.
+
+        Blocks until calls to send_request and begin_response return and then returns an object which
+        derives from io.RawIOBase from which the body of the response may be read.
+
+        The returned stream will call end_response internally (and raise any exceptions therefrom)."""
         self.send_request(request)
         self.begin_response()
 
@@ -162,9 +231,15 @@ class WebSocketClient:
         return Stream(self)
 
     def disconnect(self):
+        """Abandons the managed socket causing subsequent calls to connect to actually form a new connection."""
         self.socket = None
 
     def cancel(self):
+        """Requests that the server stop sending the request which is currently being processed.
+
+        Returns once the connection is ready for reuse.
+
+        Any outstanding streams obtained by calling stream should be abandoned."""
         if self.__state == WebSocketClient.__idle:
             return
         if self.__state == WebSocketClient.__after_response:
@@ -220,10 +295,22 @@ class WebSocketClient:
 
 
 class Position:
+    """Represents a position in an HPQ response.
+
+    Intended to be used when resuming a response immediately after a certain point."""
+
     def __init__(self, cont):
+        """Creates an object which represents the position immediately after the provided object (which is assumed to have come from an HPQ response).
+
+        To continue from immediately after the represented position synthesize a request object using the request function and then ignore all leading entries until predicate returns True."""
         self.__cont = cont
 
     def request(self, other={}):
+        """Returns a dictionary which represents a request which continues from immediately after the position represented by this object.
+
+        Populates start_date and start_time keys and may transform the date key into an end_date key.
+
+        The optional parameter is the request object into which the newly-created keys shall be merged. Note this object will not be updated but will be copied."""
         ts = self.__cont["receipt_timestamp"]
         ns = str(ts % 1000000000)
         while len(ns) != 9:
@@ -241,6 +328,9 @@ class Position:
         return retr
 
     def predicate(self, item):
+        """Determines whether or not a certain entry should be included in the continued response.
+
+        This function is necessary because the HPQ API accepts requests for a certain time range but multiple entries may occur at the same time (in which case they are ordered based on sequence number et cetera)."""
         if item["receipt_timestamp"] > self.__cont["receipt_timestamp"]:
             return True
         if item["sequence_number"] < self.__cont["sequence_number"]:
@@ -254,6 +344,7 @@ class Position:
         return True
 
     def filter(self, iterable):
+        """Obtains a callable which has the same effect as the predicate member function."""
         filtered = False
         for e in iterable:
             if filtered or self.predicate(e):
@@ -262,7 +353,17 @@ class Position:
 
 
 class Page:
+    """Represents a single page in a paginated result set."""
+
     def __init__(self, conn, request, per_page, filter=lambda x: True, pos=None):
+        """Creates a page.
+
+        Parameters:
+        - Connection to use to communicate with the HPQ API
+        - Request object to use as a template
+        - Number of results in each page
+        - Callable which will be used to filter the result set (defaults to a callable which always returns True)
+        - Position object representing the position to resume from (defaults to None which means to start at the beginning)"""
         self.__conn = conn
         self.__request = request
         self.__pos = pos
@@ -271,6 +372,7 @@ class Page:
         self.__filter = filter
 
     def __iter__(self):
+        """Returns an iterator which traverses each entry on the page."""
         i = 0
         request = self.__request
         if self.__pos is not None:
@@ -287,6 +389,11 @@ class Page:
             i += 1
 
     def next_page(self, conn):
+        """Obtains a page object representing the next page in the paginated result set.
+
+        This function is only meaningful to call after traversing this object.
+
+        Returns None if there are no further pages."""
         if self.__next_pos is None:
             return None
         return Page(
@@ -295,11 +402,21 @@ class Page:
 
 
 class Pages:
+    """Represents an entire paginated result set."""
+
     def __init__(self, conn, request, per_page, filter=lambda x: True):
+        """Creates a set of pages.
+
+        Parameters:
+        - Connection to use to communicate with the HPQ API
+        - Request object to use as a template
+        - Number of results in each page
+        - Callable which will be used to filter the result set (defaults to a callable which always returns True)"""
         self.__conn = conn
         self.__page = Page(conn, request, per_page, filter)
 
     def __iter__(self):
+        """Traverses all pages."""
         while self.__page is not None:
             yield self.__page
             self.__conn.cancel()
@@ -307,6 +424,7 @@ class Pages:
 
 
 def format_timestamp(ts):
+    """Formats a timestamp from the HPQ API (nanoseconds since epoch) in ISO8601 format with nanoseconds."""
     dt = datetime.datetime.utcfromtimestamp(ts / 1000000000)
     ns = ts % 1000000000
     ns_str = str(ns)
@@ -317,6 +435,10 @@ def format_timestamp(ts):
 
 
 def format(obj):
+    """Formats all known keys of the input dictionary and returns that dictionary.
+
+    Note the dictionary will be updated. If this is not desired copy the dictionary first."""
+
     def impl(key):
         if key in obj.keys():
             obj[key] = format_timestamp(obj[key])
@@ -328,6 +450,7 @@ def format(obj):
 
 
 def skip(n, iter):
+    """Generator which returns a traversable which skips the first n elements of the provided traversable."""
     skipped = 0
     for i in iter:
         if skipped == n:
@@ -337,6 +460,7 @@ def skip(n, iter):
 
 
 def take(n, iter):
+    """Generator which returns a traversable which takes the first n elements of the provided traversable, or all elements of the provided traversable, whichever is fewer."""
     i = 0
     for obj in iter:
         if i == n:
@@ -346,6 +470,9 @@ def take(n, iter):
 
 
 def is_production():
+    """Determines if the environment is production.
+
+    Do not use."""
     if "API_SERVER_BASE_URL" not in os.environ.keys():
         raise Exception("Environment variable API_SERVER_BASE_URL not set")
     if re.search("production", os.environ["API_SERVER_BASE_URL"]):
@@ -354,12 +481,18 @@ def is_production():
 
 
 def url():
+    """Determines the HPQ URL for this environment.
+
+    Do not use."""
     if is_production():
         return "wss://mdx.uat.maystreet.com"
     return "wss://mdx.stg.maystreet.com"
 
 
 def jwt_authorization_header():
+    """Obtains the JWT authorization header for this environment.
+
+    It will not usually be necessary to use this function directly."""
     if "JWT_FILE" not in os.environ.keys():
         raise Exception("Environment variable JWT_FILE not set")
     with open(os.environ["JWT_FILE"], "r") as file:
@@ -369,10 +502,14 @@ def jwt_authorization_header():
 
 
 def secret_authorization_header():
+    """Obtains the secret authorization header for this environment.
+
+    It will not usually be necessary to use this function directly."""
     return "Authorization: MayStreet-Data-Lake-Secret 6C753A250093DF2E997C143CC95DC246024C8B6B5F717F8D6B6EE2B4B7399E59"
 
 
 def set_authorization_header(conn, header):
+    """Sets a provided authorization header on a provided WebSocketClient."""
     if "header" not in conn.connect_opts.keys():
         conn.connect_opts["header"] = [header]
     else:
@@ -381,11 +518,13 @@ def set_authorization_header(conn, header):
 
 
 def set_untrusted(conn):
+    """Disables TLS peer verification for the provided WebSocketClient."""
     conn.init_opts["sslopt"] = {"cert_reqs": ssl.CERT_NONE}
     return conn
 
 
 def create_web_socket_client():
+    """Creates and returns a WebSocketClient for the current environment."""
     retr = WebSocketClient()
     retr.url = url()
     if is_production():
