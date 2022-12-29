@@ -34,18 +34,6 @@ to avoid buffering the entire top level array.
 
 ## Notebooks
 
-### _[authenticate.ipynb](authenticate.ipynb)_
-
-Other than this example this springboard operates against MayStreet's UAT HPQ
-environment which does not (currently) require user authentication. This will
-change in the future. Until that time this example shows how the API can make
-authenticated requests against MayStreet's production HPQ environment.
-
-A pre-shared secret is required to use this example.
-
-Fill your secret in the first cell, run the first cell, and then run the second
-cell.
-
 ### _[combo-group-id.ipynb](combo-group-id.ipynb)_
 
 SGX flags trades with a "Combo Group ID" which they describe in their
