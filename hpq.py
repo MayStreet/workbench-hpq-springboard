@@ -3,6 +3,9 @@ import datetime
 import io
 import ijson
 import json
+import os
+import re
+import ssl
 import websocket
 
 
@@ -324,11 +327,52 @@ def format(obj):
     return obj
 
 
+def is_production():
+    if "API_SERVER_BASE_URL" not in os.environ.keys():
+        raise Exception("Environment variable API_SERVER_BASE_URL not set")
+    if re.search("production", os.environ["API_SERVER_BASE_URL"]):
+        return True
+    return False
+
+
+def url():
+    if is_production():
+        return "wss://mdx.uat.maystreet.com"
+    return "wss://mdx.stg.maystreet.com"
+
+
+def jwt_authorization_header():
+    if "JWT_FILE" not in os.environ.keys():
+        raise Exception("Environment variable JWT_FILE not set")
+    with open(os.environ["JWT_FILE"], "r") as file:
+        jwt = file.read()
+    jwt = jwt.strip()
+    return f"Authorization: Bearer {jwt}"
+
+
+def secret_authorization_header():
+    return "Authorization: MayStreet-Data-Lake-Secret 6C753A250093DF2E997C143CC95DC246024C8B6B5F717F8D6B6EE2B4B7399E59"
+
+
+def set_authorization_header(conn, header):
+    if "header" not in conn.connect_opts.keys():
+        conn.connect_opts["header"] = [header]
+    else:
+        conn.connect_opts["header"].append(header)
+    return conn
+
+
+def set_untrusted(conn):
+    conn.init_opts["sslopt"] = {"cert_reqs": ssl.CERT_NONE}
+    return conn
+
+
 def create_web_socket_client():
     retr = WebSocketClient()
-    secret = "6C753A250093DF2E997C143CC95DC246024C8B6B5F717F8D6B6EE2B4B7399E59"
-    retr.connect_opts["header"] = [
-        f"Authorization: MayStreet-Data-Lake-Secret {secret}"
-    ]
-
+    retr.url = url()
+    if is_production():
+        set_authorization_header(retr, secret_authorization_header())
+    else:
+        set_authorization_header(retr, jwt_authorization_header())
+        set_untrusted(retr)
     return retr
