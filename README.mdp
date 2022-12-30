@@ -46,14 +46,7 @@ Despite this field being not necessarily having an equivalent for other
 feeds/exchanges it is supplied by the HPQ API (as "combo_group_id") when
 querying SGX data. This example uses this field to find the outright executions
 which correspond to the first spread execution it is able to find on a certain
-date (which may be set via a variable in the code).
-
-Run the only cell to obtain the following information:
-
-- Selected spread
-- Leg information
-- Metadata for the spread and all legs
-- Spread execution and its corresponding outright executions
+date.
 
 ### _[error.ipynb](error.ipynb)_
 
@@ -61,61 +54,19 @@ The HPQ API includes an endpoint whose only purpose is to fail for testing
 purposes. This example leverages this endpoint to demonstrate the various
 failure modalities which can be expected when interacting with the HPQ API.
 
-The first cell contains setup and should be run first.
-
-The second cell submits a single query which is unconditionally rejected (i.e.
-it fails before transfer of the response begins).
-
-The third cell:
-
-1. Submits a query which unconditionally ends in an immediate mid-stream error
-   (i.e. the service accepts the query and then transfer of the response fails
-   without sending any bytes thereof)
-2. Submits a query for some trades
-3. Transfers 10 trades
-4. Cancels the transfer
-5. JSONifies the downloaded trades as an incomplete JSON array (i.e. the last
-   character of the JSON representation is a comma)
-6. Submits a query which unconditionally ends in a mid-stream error but only
-   after sending the JSON from 5 as an incomplete response (note that the
-   response is incomplete because it ends in a mid-stream error rather than
-   succeeding)
-
-Note that despite the fact the query from 6 ends in error after transferring an
-incomplete body comprised of an incomplete JSON array the partial response is
-still parsed.
-
 ### _[graph-trades.ipynb](graph-trades.ipynb)_
 
 Downloads an entire day (2022-09-16) of iMpact trades for the spread product
 `SB  FMV0022-SB  FMH0023` and plots the price thereof.
 
-To run this notebook simply open it and click `Run All` in the top toolbar.
-
 ### _[metadata.ipynb](metadata.ipynb)_
 
-The first meaningful cell of this notebook finds all spreads on the CME on the
-trading day 2022-09-16 which match a certain criteria: They have legs with
-product IDs 293009, 457947, and 514348. Note that this is accomplished by
-downloading all metadata for all products on the CME.
+Two means of inspecting product metadata are provided by the HPQ API:
 
-To demonstrate the streaming nature of the API, and the streaming techniques in
-use on the client side of these examples, this first cell downloads all metadata
-for every product on the CME for the trading day in question. There are ~750 000
-such products and the JSON response is in excess of a half gigabyte in size.
-These details are of little consequence however since the response is read and
-parsed frame-by-frame, element-by-element and so the search completes quite
-quickly and with minimal memory use.
+- A listing of all products (and optionally their metadata)
+- Snapshots of metadata for a particular product
 
-The second meaningful cell of this notebook interrogates the API to retrieve all
-metadata available regarding the aforementioned legs as of 17:30 ET on
-2022-09-16. Note that a date and time are specified to interrogate the API
-because CME metadata can evolve intra-day and the HPQ API is capable of tracking
-these evolutions and returning snapshots of product metadata as they existed at
-different points within a day.
-
-This notebook can be run either by running all cells via the `Run All` button on
-the top toolbar or by running the first or second cells on their own.
+This example demonstrates both of the above.
 
 ### _[no-follow.ipynb](no-follow.ipynb)_
 
@@ -126,29 +77,8 @@ possible. This formulation implies that there may be queries which cannot be
 fully satisfied at some point in time but which may be satisfiable in the
 future.
 
-Because of this HPQ responses may end with a JSON object whose `type` key is
-associated with the string `no_follow`. This indicates that the query caught up
-to the point up to which data is technically and legally available. This is
-described as "no follow" because it indicates that the query engine refused to
-"follow" live market data. This usage of the term "follow" has prior art in the
-`-f` option to the `tail` utility.
-
-This example demonstrates handling queries that end in "no follow" and how those
-result sets evolve as live market data is processed by the HPQ system. Run the
-first cell and then the second cell. The second cell always queries for the last
-20 minutes of CME data for `ES` with a month code of `Z` and a year code which
-corresponds to the current year. Since CME data is legally required to be
-delayed by ten minutes this query will end in `no_follow`. The output is:
-
-- The time range queried (i.e. which 20 minute time range was requested)
-- The number of results displayed (up to 25)
-- The total number of results
-- The time up to which market data was available
-- A table of the displayed results (always the last 25 results in the result
-  set)
-
-Repeatedly run the only cell to watch the result set evolve as additional market
-data is made available through the HPQ system.
+This example demonstrates how the HPQ API handles the above scenario (by
+transmitting a `no_follow` record).
 
 ### _[pagination.ipynb](pagination.ipynb)_
 
@@ -172,51 +102,17 @@ response in advance HPQ allows them to read as much as they like and then
 abandon the response. This approach is less, not more, limiting than traditional
 pagination.
 
-This springboard demonstrates this principle through two different examples.
-
-#### First Example: Page-by-Page
-
-Running the first cell begins the example by opening a connection to HPQ and
-setting up a pagination context with a query for 15 minutes of trades from the
-CME. Thereafter each time the second cell is run it will retrieve the next page
-of 10 trades. Once all trades have been retrieved running the second cell does
-nothing.
-
-To restart the pagination simply run the first cell again.
-
-#### Second Example: All Pages
-
-Running the third cell streams all pages in a result set. Note that in this case
-the injected filtering lambda selects only printable trades however a correctly
-paginated set is still formed. This demonstrates the flexibility of HPQ's
-streaming approach.
+This example demonstrates the above principle.
 
 ### _[post-trade.ipynb](post-trade.ipynb)_
 
-Reads a list of CSV trades and for each:
-
-1. Finds the exact trade (since the input timestamps do not have nanosecond
-   precision)
-2. Obtains a snapshot of the state of the market immediately before the trade
-3. Obtains a snapshot of the state of the market immediately after the trade
-4. Determines the next change to the top of the book after the trade
-5. Obtains the next trade
-
-The first cell contains setup and should be run first.
-
-The second cell contains the CSV to process.
-
-The third cell contains the actual implementation of the example and will
-generate the corresponding output.
+Reads a CSV description of several trades and outputs post trade information for
+each.
 
 ### _[trade-conditions.ipynb](trade-conditions.ipynb)_
 
 Annotates CME trades using a popular trade condition convention (TSUM, AB, AS,
 and OR).
-
-Run the first call to provide needed definitions, and then the second cell to
-fetch orders and trades from HPQ and display a table of trades with their
-associated trade conditions.
 
 #### See Also
 
@@ -236,12 +132,6 @@ one may disregard transactions. If however one only wishes to examine valid,
 consistent states of the market one must only process updates after aggregating
 across each transaction. The latter of these is the purpose of this example.
 
-The first cell performs mandatory setup. The second cell contains the actual
-example: Changes to the top of book on CME are streamed. The first time they are
-streamed aggregation is performed across the transaction with only the final,
-consistent state being emitted. The second time each and every update is
-emitted. Note that the second data set is larger than the first.
-
 ### _[unreliable.ipynb](unreliable.ipynb)_
 
 The HPQ API supports extremely large result sets. As a large result set is
@@ -251,40 +141,6 @@ response). To use the HPQ API in these situations it is important that
 techniques are available and used to transfer large result sets even if the
 underlying connection is unreliable. This example demonstrates exactly these
 techniques.
-
-Run the first cell to provide a request and some helper functions for simulating
-an unreliable connection (i.e. one which has a 5% chance of raising an exception
-rather than yielding a result). Thereafter each subsequent cell is a separate
-example.
-
-#### First Example: Reliable Connection
-
-This example simply transfers the entire result set over a reliable connection
-(i.e. one without synthenic disconnects) to establish ground truth.
-
-#### Second Example: Unreliable Connection With Streaming JSON
-
-This example supposes that the environment has a streaming JSON parser
-available. As the result set is transferred the last transferred result is kept
-available and upon disconnect another connection is formed, an appropriate
-continuation request is submitted, and duplicated updates (if any) are
-discarded.
-
-Note that this example does not restart the transfer from the beginning on
-failure, it resumes as close to the last result as possible.
-
-#### Third Example: Unreliable Connection Without Streaming JSON
-
-This example supposes that the streaming JSON parsing techniques used in the
-previous example are unavailable. Instead of being requested as JSON the result
-set is requested as JSON Lines which allows for the response to be parsed and
-processed line-by-line. Other than this difference this example functions
-identically to the second example.
-
-#### See Also
-
-The techniques demonstrated by this example dovetail with those in the example
-for [paginating result sets](pagination.ipynb).
 
 ## Python Module
 
