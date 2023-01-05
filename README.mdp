@@ -109,6 +109,10 @@ This example demonstrates the above principle.
 Reads a CSV description of several trades and outputs post trade information for
 each.
 
+### _[sip-query-by-venues.ipynb](sip-query-by-venues.ipynb)_
+
+An example that shows querying SIP data by venues or a combination of venues.
+
 ### _[trade-conditions.ipynb](trade-conditions.ipynb)_
 
 Annotates CME trades using a popular trade condition convention (TSUM, AB, AS,
