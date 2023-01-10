@@ -109,6 +109,15 @@ This example demonstrates the above principle.
 Reads a CSV description of several trades and outputs post trade information for
 each.
 
+### _[sip-enrich-trades.ipynb](sip-enrich-trades.ipynb)_
+
+This is an example shows how to query for BBOs and NBBO at the occurence of a trade
+
+### _[sip-opening-price.ipynb](sip-opening-price.ipynb)_
+
+An example that shows how to calculate the opening price when the end-of-day
+statistics haven't (yet) been published by the exchange
+
 ### _[sip-query-by-venues.ipynb](sip-query-by-venues.ipynb)_
 
 An example that shows querying SIP data by venues or a combination of venues.
