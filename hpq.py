@@ -473,9 +473,9 @@ def is_production():
     """Determines if the environment is production.
 
     Do not use."""
-    if "API_SERVER_BASE_URL" not in os.environ.keys():
-        raise Exception("Environment variable API_SERVER_BASE_URL not set")
-    if re.search("production", os.environ["API_SERVER_BASE_URL"]):
+    if "SQL_SERVICE_ENDPOINT" not in os.environ.keys():
+        raise Exception("Environment variable SQL_SERVICE_ENDPOINT not set")
+    if re.search("production", os.environ["SQL_SERVICE_ENDPOINT"]):
         return True
     return False
 
