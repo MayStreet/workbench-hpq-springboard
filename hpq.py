@@ -53,7 +53,7 @@ class WebSocketClient:
     def __init__(self):
         self.url = "wss://mdx.uat.maystreet.com"
         """The url to connect to. Defaults to the HPQ UAT environment."""
-        self.init_opts = {}
+        self.init_opts = {"fire_cont_frame":True}
         """A dictionary of options which will be expanded and forwarded when calling
         websocket.WebSocket.__init__."""
         self.socket = None
@@ -131,7 +131,7 @@ class WebSocketClient:
         """Streams the next JSON frame of the response.
 
         Returns the data associated with the received WebSocket frame."""
-        self.frame = self.socket.recv_frame()
+        self.frame = self.socket.recv_data_frame()[1]
         if self.finished_response():
             self.__state = WebSocketClient.__after_response
 
